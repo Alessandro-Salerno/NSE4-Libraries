@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "unet"
+version = "1.0.0"
+description = "Network library for remote TTY programs by the UMSR Minecraft Server"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "../../LICENSE" }
+
+authors = [
+    { name = "Alessandro Salerno", email = "example@example.com" }
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "mcom == 1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Alessandro-Salerno/NSE4-Libraries"
+"Bug Tracker" = "https://github.com/Alessandro-Salerno/NSE4-Libraries/issues"
+

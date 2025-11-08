@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcom"
+version = "1.0.0"
+description = "Framing TCP protocol for use by UNet"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "../../LICENSE" }
+
+authors = [
+    { name = "Alessandro Salerno", email = "example@example.com" }
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Alessandro-Salerno/NSE4-Libraries"
+"Bug Tracker" = "https://github.com/Alessandro-Salerno/NSE4-Libraries/issues"
+
