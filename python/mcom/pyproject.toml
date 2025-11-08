@@ -24,3 +24,5 @@ classifiers = [
 Homepage = "https://github.com/Alessandro-Salerno/NSE4-Libraries"
 "Bug Tracker" = "https://github.com/Alessandro-Salerno/NSE4-Libraries/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcom"]

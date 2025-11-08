@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch]
+workspace = true
+
+[tool.hatch.metadata]
+directories = [
+    "mcom",
+    "unet",
+]
+
