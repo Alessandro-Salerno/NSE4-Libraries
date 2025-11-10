@@ -16,12 +16,17 @@
 
 
 import json
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-UNET_PROTOCOL_VERSION = '1.0.0'
+UNET_PROTOCOL_VERSION = '1.1.0'
+UNET_RSA_KEY_SIZE = 4096
+UNET_AES_KEY_SIZE=256
+UNET_AES_IV_SIZE=16
 
 
 class UNetMessageType:
+    ENCRYPT = 'ENCRYPT'
     AUTH = 'AUTH'
     STATUS = 'STATUS'
     VALUE = 'VALUE'
@@ -52,25 +57,36 @@ def unet_make_message(**kwargs):
     return json.dumps(kwargs)
 
 
-def unet_make_auth_message(mode: str, name: str, email: str, password: str):
+def unet_make_encrypt_message(rsa_public_key: rsa.RSAPublicKey):
+    return unet_make_message(
+        type=UNetMessageType.ENCRYPT,
+        version=UNET_PROTOCOL_VERSION, # retro compatibility
+        exponent=str(rsa_public_key.public_numbers().e),
+        modulus=str(rsa_public_key.public_numbers().n)
+    )
+
+
+def unet_make_auth_message(mode: str, name: str, email: str, password: str, discord_userid: str, agent: str):
     return unet_make_message(
         type=UNetMessageType.AUTH,
         version=UNET_PROTOCOL_VERSION,
         mode=mode,
         name=name,
         email=email,
-        password=password
+        password=password,
+        discord_userid=discord_userid,
+        agent=agent
     )
 
 
-def unet_make_status_message(mode: str, code: str, message: str):
+def unet_make_status_message(mode: str, code: str, message: str|dict):
     return unet_make_message(
         type=UNetMessageType.STATUS,
         mode=mode,
         code=code,
         message=message
     )
-9
+
 
 def unet_make_table_message(title: str, columns: list, rows: list):
     return unet_make_message(
@@ -106,9 +122,14 @@ def unet_make_multi_message(*messages):
         messages=messages
     )
 
+
 def unet_make_value_message(name: str, value: any):
     return unet_make_message(
         type=UNetMessageType.VALUE,
         name=name,
         value=value
     )
+
+
+def unet_read_encrypt_message(message: dict):
+    return int(message['exponent']), int(message['modulus'])

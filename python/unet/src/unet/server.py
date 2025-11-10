@@ -28,6 +28,7 @@ from unet.command_parser import UNetCommandParserFactory
 from unet.command_handler import UNetCommandHandler
 from unet.database import UNetUserDatabase
 import unet.protocol as uprot
+import unet.encryption as uenc
 
 
 class UNetServerCommand(UNetCommand):
@@ -42,7 +43,7 @@ class UNetServerCommand(UNetCommand):
 from datetime import datetime
 class UNetAuthenticatedHandler(MComConnectionHandler):
     def __init__(self,
-                 socket: socket,
+                 socket: socket.socket,
                  user: str,
                  user_command_handler: UNetCommandHandler,
                  admin_command_handler: UNetCommandHandler,
@@ -111,7 +112,7 @@ class UNetAuthenticatedHandler(MComConnectionHandler):
 
 
 class UNetAuthenticationHandler(MComConnectionHandler):
-    def __init__(self, socket: socket, authenticated_handler=UNetAuthenticatedHandler, parent=None) -> None:
+    def __init__(self, socket: socket.socket, authenticated_handler=UNetAuthenticatedHandler, parent=None) -> None:
         self._authenticated_handler = authenticated_handler
         super().__init__(socket, parent)
     
@@ -125,21 +126,44 @@ class UNetAuthenticationHandler(MComConnectionHandler):
                 code=uprot.UNetStatusCode.VER,
                 message={
                     'version': uprot.UNET_PROTOCOL_VERSION,
-                    'content': "You're running an outdated version of the UNet protocol"
+                    'content': "This server does not support your UNet protocol version"
                 }
             ))
 
-        if init_json['type'] != uprot.UNetMessageType.AUTH:
+        if init_json['type'] != uprot.UNetMessageType.ENCRYPT:
+            self.bad_request('Expected ENCRYPT message')
+            return
+
+        self.rsa_handshake(init_json)
+        self.setup_aes()
+
+        auth_msg = self.protocol.recv()
+        auth_json = json.loads(auth_msg)
+
+        if auth_json['type'] != uprot.UNetMessageType.AUTH:
             self.bad_request('Expected AUTH message')
             return
         
-        if init_json['mode'] == uprot.UNetAuthMode.LOGIN:
-            self.login(init_json)
+        if auth_json['mode'] == uprot.UNetAuthMode.LOGIN:
+            self.login(auth_json)
             return
         
-        if init_json['mode'] == uprot.UNetAuthMode.SIGNUP:
-            self.signup(init_json)
+        if auth_json['mode'] == uprot.UNetAuthMode.SIGNUP:
+            self.signup(auth_json)
             return
+
+    def rsa_handshake(self, encrypt_msg: dict) -> None:
+        my_key = uenc.new_random_rsa_key()
+        e, n = uprot.unet_read_encrypt_message(encrypt_msg)
+        other_key = uenc.reconstructrsa_public_key(e, n)
+        self.protocol.send(uprot.unet_make_encrypt_message(my_key.public_key()))
+        self.protocol = uenc.UNetRSAMComProtocol(self.protocol, my_key, other_key)
+
+    def setup_aes(self):
+        aes_key = uenc.new_random_aes_keY()
+        self.protocol.send_bytes(aes_key.key)
+        self.protocol.send_bytes(aes_key.iv)
+        self.protocol = uenc.UNetAESMComProtocol(self.protocol, aes_key)
 
     def login(self, init_json):
         if UNetUserDatabase().exists(init_json['name'], init_json['password']) < 2:
@@ -183,8 +207,8 @@ class UNetAuthenticationHandler(MComConnectionHandler):
     def on_login(self, username: str):
         return
     
-    def on_signup(self, username: str):
-        return
+    def on_signup(self, username: str) -> bool:
+        return True
 
     def bad_request(self, message: str):
         self.protocol.send(uprot.unet_make_status_message(

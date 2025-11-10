@@ -19,19 +19,31 @@ import json
 
 from mcom.connection_handler import MComConnectionHandler
 from mcom.client import MComClient
-from mcom.protocol import MComProtocol
 
 from unet.command_orchestrator import UNetCommandOrchestrator
 from unet.command_handler import UNetCommandHandler
 import unet.protocol as uprot
+import unet.encryption as uenc
 
+
+class UNetClientEncryptException(Exception):
+    def __init__(self) -> None:
+        super().__init__("Failed to secure connection with remote server")
 
 class UNetClientConnectionMode:
-    def __init__(self, mode: str, name: str, email: str, password: str) -> None:
+    def __init__(self,
+                 mode: str,
+                 name: str,
+                 email: str,
+                 password: str,
+                 discord_userid: str,
+                 agent: str) -> None:
         self._mode = mode
         self._name = name
         self._email = email
         self._password = password
+        self._discord_userid = discord_userid
+        self._agent = agent
     
     @property
     def mode(self):
@@ -49,6 +61,14 @@ class UNetClientConnectionMode:
     def password(self):
         return self._password
 
+    @property
+    def discord_userid(self):
+        return self._discord_userid
+
+    @property
+    def agent(self):
+        return self._agent
+
 
 class UNetClient(MComClient):
     def __init__(self,
@@ -60,20 +80,46 @@ class UNetClient(MComClient):
         
         self._conn_mode = conn_mode
         self._local_command_handler = local_command_handler
-        self._local_command_handler._top = self
+        self._local_command_handler.set_top(self)
         super().__init__(server_address, server_port, connection_handler_class)
-        self._local_command_handler._parent = self._connection
+        self._local_command_handler.set_parent(self._connection)
         self._connection.join()
 
-    def post_connect(self):
-        protocol = MComProtocol(self._socket)
-        self._command_orchestrator = UNetCommandOrchestrator(self._local_command_handler, protocol)
+    def on_connect(self):
+        my_rsa_key = uenc.new_random_rsa_key()
+        self.protocol.send(uprot.unet_make_encrypt_message(my_rsa_key.public_key()))
+
+        encrypt_msg = self.protocol.recv()
+        encrypt_json = json.loads(encrypt_msg)
         
-        protocol.send(uprot.unet_make_auth_message(
+        if encrypt_json['type'] != uprot.UNetMessageType.ENCRYPT:
+            self.protocol.socket.close()
+            raise UNetClientEncryptException()
+
+        e, n = uprot.unet_read_encrypt_message(encrypt_json)
+        server_rsa_key = uenc.reconstructrsa_public_key(e, n)
+        self.protocol = uenc.UNetRSAMComProtocol(self.protocol, my_rsa_key, server_rsa_key)
+        
+        raw_aes_key = self.protocol.recv_bytes()
+        raw_aes_iv = self.protocol.recv_bytes()
+
+        if len(raw_aes_key) != uprot.UNET_AES_KEY_SIZE / 8 \
+                or len(raw_aes_iv) != uprot.UNET_AES_IV_SIZE / 8:
+            self.protocol.socket.close()
+            raise UNetClientEncryptException()
+
+        aes_key = uenc.UNetAESKey(raw_aes_key, raw_aes_iv)
+        self.protocol = uenc.UNetAESMComProtocol(self.protocol, aes_key)
+        
+    def post_connect(self):
+        self._command_orchestrator = UNetCommandOrchestrator(self._local_command_handler, self.protocol)
+        self.protocol.send(uprot.unet_make_auth_message(
             mode=self.conn_mode.mode,
             name=self.conn_mode.name,
             email=self.conn_mode.email,
-            password=self.conn_mode.password
+            password=self.conn_mode.password,
+            discord_userid=self.conn_mode.discord_userid,
+            agent=self.conn_mode.agent
         ))
 
     @property

@@ -56,6 +56,12 @@ class UNetCommandHandler:
             raise UNetCommandIncompatibleArgumentException(command.command_name, handler._unet_command_argc, len(command.arguments))
         
         return handler(command, *command.arguments)
+
+    def set_top(self, top):
+        self._top = top
+
+    def set_parent(self, parent):
+        self._parent = parent
     
     @property
     def parent(self):
