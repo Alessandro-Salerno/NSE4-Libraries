@@ -18,6 +18,7 @@
 import threading
 import socket
 from mcom.connection_handler import MComConnectionHandler
+from mcom.protocol import MComProtocol
 
 
 class MComServer:
@@ -47,11 +48,11 @@ class MComServer:
 
         self._finished = True
 
-    def _on_connect(self, connectioN: socket.socket, address) -> None:
-        self._connections.append(self.on_connect(connection=connectioN, address=address))
+    def _on_connect(self, connection: socket.socket, address) -> None:
+        self._connections.append(self.on_connect(connection=connection, address=address))
 
     def on_connect(self, connection: socket.socket, address) -> MComConnectionHandler:
-        return self._connection_handler_class(socket=connection, parent=self)
+        return self._connection_handler_class(protocol=MComProtocol(connection), parent=self)
 
     def on_exception(self, exception: Exception) -> None:
         raise exception
