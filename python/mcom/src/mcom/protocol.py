@@ -25,15 +25,21 @@ class MComProtocol:
     
     def send(self, message: str) -> None:
         encoded = message.encode('utf-8')
-        msgsz = len(encoded)
-        byte_msgsz = msgsz.to_bytes(length=4, byteorder='big', signed=True)
+        return self.send_bytes(encoded)
+
+    def send_bytes(self, message: bytes) -> None:
+        msgsz = len(message)
+        byte_msgsz = msgsz.to_bytes(length=4, byteorder='big', signed=False)
         sent = self.socket.send(byte_msgsz)
-        sent += self.socket.send(encoded)
+        sent += self.socket.send(message)
 
         if sent != msgsz + 4:
             raise MComSendException(msgsz, 4, sent)
-        
+
     def recv(self) -> str:
+        return self.recv_bytes().decode('utf-8')
+
+    def recv_bytes(self) -> bytes:
         msgsz = int.from_bytes(self.socket.recv(4), byteorder='big', signed=True)
         remaining = msgsz
         buffer = b''
@@ -43,7 +49,7 @@ class MComProtocol:
             remaining -= len(r)
             buffer += r
 
-        return buffer.decode('utf-8')
+        return buffer
     
     def recvall(self):
         self.socket.setblocking(False)
