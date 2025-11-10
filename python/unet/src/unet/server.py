@@ -22,6 +22,7 @@ import logging
 
 from mcom.connection_handler import MComConnectionHandler
 from mcom.server import MComServer
+from mcom.protocol import MComProtocol
 
 from unet.command import UNetCommand, NoSuchUNetCommandException, UNetCommandIncompatibleArgumentException
 from unet.command_parser import UNetCommandParserFactory
@@ -40,10 +41,9 @@ class UNetServerCommand(UNetCommand):
     def issuer(self):
         return self._issuer
 
-from datetime import datetime
 class UNetAuthenticatedHandler(MComConnectionHandler):
     def __init__(self,
-                 socket: socket.socket,
+                 protocol: MComProtocol,
                  user: str,
                  user_command_handler: UNetCommandHandler,
                  admin_command_handler: UNetCommandHandler,
@@ -57,7 +57,7 @@ class UNetAuthenticatedHandler(MComConnectionHandler):
         self._admin_command_handler._parent = self
         self._admin_command_handler._top = parent
         self._parser_facttory = UNetCommandParserFactory(local_symbol='*')
-        super().__init__(socket=socket, parent=parent)
+        super().__init__(protocol=protocol, parent=parent)
 
     def main(self) -> None:
         msg_cmd = self.protocol.recv()
@@ -112,9 +112,9 @@ class UNetAuthenticatedHandler(MComConnectionHandler):
 
 
 class UNetAuthenticationHandler(MComConnectionHandler):
-    def __init__(self, socket: socket.socket, authenticated_handler=UNetAuthenticatedHandler, parent=None) -> None:
+    def __init__(self, protocol: MComProtocol, authenticated_handler=UNetAuthenticatedHandler, parent=None) -> None:
         self._authenticated_handler = authenticated_handler
-        super().__init__(socket, parent)
+        super().__init__(protocol, parent)
     
     def main(self) -> None:
         init_msg = self.protocol.recv()
@@ -180,12 +180,12 @@ class UNetAuthenticationHandler(MComConnectionHandler):
 
         self.kill()
         self.on_login(init_json['name'])
+        # This seems wrong, but it just expects a redefinition of the above class which specifies the missing parameters
         return self._authenticated_handler(socket=self.protocol.socket, parent=self.parent, user=init_json['name'])
     
     def signup(self, init_json):
         if not str(init_json['name']).replace('_', '').isalnum():
             return self.bad_request('Username contains invalid characters')
-            return
 
         if UNetUserDatabase().exists(init_json['name'], init_json['password']) != 0:
             self.bad_request('User already exists')
@@ -202,7 +202,8 @@ class UNetAuthenticationHandler(MComConnectionHandler):
         UNetUserDatabase().add_user(init_json['name'], init_json['email'], init_json['password'])
         self.kill()
         self.on_signup(init_json['name'])
-        return self._authenticated_handler(socket=self.protocol.socket, parent=self.parent, user=init_json['name'])
+        # same here
+        return self._authenticated_handler(protocol=self.protocol, parent=self.parent, user=init_json['name'])
 
     def on_login(self, username: str):
         return
