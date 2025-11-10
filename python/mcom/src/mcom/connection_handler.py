@@ -21,8 +21,8 @@ from mcom.protocol import MComProtocol
 
 
 class MComConnectionHandler:
-    def __init__(self, socket: socket.socket, parent=None, thread_independent=True) -> None:
-        self.protocol = MComProtocol(socket)
+    def __init__(self, protocol: MComProtocol, parent=None, thread_independent=True) -> None:
+        self.protocol = protocol
         self._alive = True
         self._finished = False
         self._parent = parent

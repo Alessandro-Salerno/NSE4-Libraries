@@ -17,6 +17,7 @@
 
 import socket
 from mcom.connection_handler import MComConnectionHandler
+from mcom.protocol import MComProtocol
 
 
 class MComClient:
@@ -24,11 +25,12 @@ class MComClient:
         self._server_address = server_address
         self._server_port = server_port
         
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.connect((server_address, server_port))
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((server_address, server_port))
+        self.protocol = MComProtocol(s)
 
         self.on_connect()
-        self._connection = connection_handler_class(socket=self._socket, parent=self, thread_independent=False)
+        self._connection = connection_handler_class(protocol=self.protocol, parent=self, thread_independent=False)
         self.post_connect()
 
     def on_connect(self):
