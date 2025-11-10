@@ -181,7 +181,7 @@ class UNetAuthenticationHandler(MComConnectionHandler):
         self.kill()
         self.on_login(init_json['name'])
         # This seems wrong, but it just expects a redefinition of the above class which specifies the missing parameters
-        return self._authenticated_handler(socket=self.protocol.socket, parent=self.parent, user=init_json['name'])
+        return self._authenticated_handler(socket=self.protocol, parent=self.parent, user=init_json['name'])
     
     def signup(self, init_json):
         if not str(init_json['name']).replace('_', '').isalnum():

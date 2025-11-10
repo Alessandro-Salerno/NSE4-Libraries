@@ -88,6 +88,7 @@ class UNetRSAMComProtocol(MComProtocol):
 class UNetAESMComProtocol(MComProtocol):
     def __init__(self, base_prot: MComProtocol, aes_key: UNetAESKey):
         self._aes_key = aes_key
+        super().__init__(base_prot.socket)
 
     def send_bytes(self, message: bytes) -> None:
         return super().send_bytes(self._aes_key.encrypt(message))
